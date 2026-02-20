@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package corvo.v1;
 
-option go_package = "github.com/corvohq/go-sdk/internal/gen/corvo/v1;corvov1";
-
 import "google/protobuf/timestamp.proto";
 
 service WorkerService {
