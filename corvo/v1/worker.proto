@@ -13,6 +13,7 @@ service WorkerService {
   rpc StreamLifecycle(stream LifecycleStreamRequest) returns (stream LifecycleStreamResponse) {}
   rpc Fail(FailRequest) returns (FailResponse) {}
   rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse) {}
+  rpc Subscribe(SubscribeRequest) returns (stream SubscribeEvent) {}
 }
 
 message EnqueueRequest {
@@ -176,4 +177,20 @@ message HeartbeatJobResponse {
 
 message HeartbeatResponse {
   map<string, HeartbeatJobResponse> jobs = 1;
+}
+
+message SubscribeRequest {
+  repeated string queues = 1;
+  repeated string job_ids = 2;
+  repeated string types = 3;
+  uint64 last_event_id = 4;
+}
+
+message SubscribeEvent {
+  uint64 seq = 1;
+  string type = 2;
+  string job_id = 3;
+  string queue = 4;
+  uint64 at_ns = 5;
+  string data_json = 6;
 }

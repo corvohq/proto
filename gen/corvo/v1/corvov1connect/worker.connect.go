@@ -51,6 +51,8 @@ const (
 	WorkerServiceFailProcedure = "/corvo.v1.WorkerService/Fail"
 	// WorkerServiceHeartbeatProcedure is the fully-qualified name of the WorkerService's Heartbeat RPC.
 	WorkerServiceHeartbeatProcedure = "/corvo.v1.WorkerService/Heartbeat"
+	// WorkerServiceSubscribeProcedure is the fully-qualified name of the WorkerService's Subscribe RPC.
+	WorkerServiceSubscribeProcedure = "/corvo.v1.WorkerService/Subscribe"
 )
 
 // These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
@@ -64,6 +66,7 @@ var (
 	workerServiceStreamLifecycleMethodDescriptor = workerServiceServiceDescriptor.Methods().ByName("StreamLifecycle")
 	workerServiceFailMethodDescriptor            = workerServiceServiceDescriptor.Methods().ByName("Fail")
 	workerServiceHeartbeatMethodDescriptor       = workerServiceServiceDescriptor.Methods().ByName("Heartbeat")
+	workerServiceSubscribeMethodDescriptor       = workerServiceServiceDescriptor.Methods().ByName("Subscribe")
 )
 
 // WorkerServiceClient is a client for the corvo.v1.WorkerService service.
@@ -76,6 +79,7 @@ type WorkerServiceClient interface {
 	StreamLifecycle(context.Context) *connect.BidiStreamForClient[v1.LifecycleStreamRequest, v1.LifecycleStreamResponse]
 	Fail(context.Context, *connect.Request[v1.FailRequest]) (*connect.Response[v1.FailResponse], error)
 	Heartbeat(context.Context, *connect.Request[v1.HeartbeatRequest]) (*connect.Response[v1.HeartbeatResponse], error)
+	Subscribe(context.Context, *connect.Request[v1.SubscribeRequest]) (*connect.ServerStreamForClient[v1.SubscribeEvent], error)
 }
 
 // NewWorkerServiceClient constructs a client for the corvo.v1.WorkerService service. By default, it
@@ -136,6 +140,12 @@ func NewWorkerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(workerServiceHeartbeatMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
+		subscribe: connect.NewClient[v1.SubscribeRequest, v1.SubscribeEvent](
+			httpClient,
+			baseURL+WorkerServiceSubscribeProcedure,
+			connect.WithSchema(workerServiceSubscribeMethodDescriptor),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -149,6 +159,7 @@ type workerServiceClient struct {
 	streamLifecycle *connect.Client[v1.LifecycleStreamRequest, v1.LifecycleStreamResponse]
 	fail            *connect.Client[v1.FailRequest, v1.FailResponse]
 	heartbeat       *connect.Client[v1.HeartbeatRequest, v1.HeartbeatResponse]
+	subscribe       *connect.Client[v1.SubscribeRequest, v1.SubscribeEvent]
 }
 
 // Enqueue calls corvo.v1.WorkerService.Enqueue.
@@ -191,6 +202,11 @@ func (c *workerServiceClient) Heartbeat(ctx context.Context, req *connect.Reques
 	return c.heartbeat.CallUnary(ctx, req)
 }
 
+// Subscribe calls corvo.v1.WorkerService.Subscribe.
+func (c *workerServiceClient) Subscribe(ctx context.Context, req *connect.Request[v1.SubscribeRequest]) (*connect.ServerStreamForClient[v1.SubscribeEvent], error) {
+	return c.subscribe.CallServerStream(ctx, req)
+}
+
 // WorkerServiceHandler is an implementation of the corvo.v1.WorkerService service.
 type WorkerServiceHandler interface {
 	Enqueue(context.Context, *connect.Request[v1.EnqueueRequest]) (*connect.Response[v1.EnqueueResponse], error)
@@ -201,6 +217,7 @@ type WorkerServiceHandler interface {
 	StreamLifecycle(context.Context, *connect.BidiStream[v1.LifecycleStreamRequest, v1.LifecycleStreamResponse]) error
 	Fail(context.Context, *connect.Request[v1.FailRequest]) (*connect.Response[v1.FailResponse], error)
 	Heartbeat(context.Context, *connect.Request[v1.HeartbeatRequest]) (*connect.Response[v1.HeartbeatResponse], error)
+	Subscribe(context.Context, *connect.Request[v1.SubscribeRequest], *connect.ServerStream[v1.SubscribeEvent]) error
 }
 
 // NewWorkerServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -257,6 +274,12 @@ func NewWorkerServiceHandler(svc WorkerServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(workerServiceHeartbeatMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
+	workerServiceSubscribeHandler := connect.NewServerStreamHandler(
+		WorkerServiceSubscribeProcedure,
+		svc.Subscribe,
+		connect.WithSchema(workerServiceSubscribeMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/corvo.v1.WorkerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case WorkerServiceEnqueueProcedure:
@@ -275,6 +298,8 @@ func NewWorkerServiceHandler(svc WorkerServiceHandler, opts ...connect.HandlerOp
 			workerServiceFailHandler.ServeHTTP(w, r)
 		case WorkerServiceHeartbeatProcedure:
 			workerServiceHeartbeatHandler.ServeHTTP(w, r)
+		case WorkerServiceSubscribeProcedure:
+			workerServiceSubscribeHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -314,4 +339,8 @@ func (UnimplementedWorkerServiceHandler) Fail(context.Context, *connect.Request[
 
 func (UnimplementedWorkerServiceHandler) Heartbeat(context.Context, *connect.Request[v1.HeartbeatRequest]) (*connect.Response[v1.HeartbeatResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("corvo.v1.WorkerService.Heartbeat is not implemented"))
+}
+
+func (UnimplementedWorkerServiceHandler) Subscribe(context.Context, *connect.Request[v1.SubscribeRequest], *connect.ServerStream[v1.SubscribeEvent]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("corvo.v1.WorkerService.Subscribe is not implemented"))
 }
