@@ -14,6 +14,7 @@ service WorkerService {
   rpc Fail(FailRequest) returns (FailResponse) {}
   rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse) {}
   rpc Subscribe(SubscribeRequest) returns (stream SubscribeEvent) {}
+  rpc GetServerInfo(GetServerInfoRequest) returns (GetServerInfoResponse) {}
 }
 
 message EnqueueRequest {
@@ -193,4 +194,11 @@ message SubscribeEvent {
   string queue = 4;
   uint64 at_ns = 5;
   string data_json = 6;
+}
+
+message GetServerInfoRequest {}
+
+message GetServerInfoResponse {
+  string server_version = 1;
+  string api_version = 2;
 }

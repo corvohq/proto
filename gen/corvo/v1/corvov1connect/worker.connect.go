@@ -53,6 +53,9 @@ const (
 	WorkerServiceHeartbeatProcedure = "/corvo.v1.WorkerService/Heartbeat"
 	// WorkerServiceSubscribeProcedure is the fully-qualified name of the WorkerService's Subscribe RPC.
 	WorkerServiceSubscribeProcedure = "/corvo.v1.WorkerService/Subscribe"
+	// WorkerServiceGetServerInfoProcedure is the fully-qualified name of the WorkerService's
+	// GetServerInfo RPC.
+	WorkerServiceGetServerInfoProcedure = "/corvo.v1.WorkerService/GetServerInfo"
 )
 
 // These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
@@ -67,6 +70,7 @@ var (
 	workerServiceFailMethodDescriptor            = workerServiceServiceDescriptor.Methods().ByName("Fail")
 	workerServiceHeartbeatMethodDescriptor       = workerServiceServiceDescriptor.Methods().ByName("Heartbeat")
 	workerServiceSubscribeMethodDescriptor       = workerServiceServiceDescriptor.Methods().ByName("Subscribe")
+	workerServiceGetServerInfoMethodDescriptor   = workerServiceServiceDescriptor.Methods().ByName("GetServerInfo")
 )
 
 // WorkerServiceClient is a client for the corvo.v1.WorkerService service.
@@ -80,6 +84,7 @@ type WorkerServiceClient interface {
 	Fail(context.Context, *connect.Request[v1.FailRequest]) (*connect.Response[v1.FailResponse], error)
 	Heartbeat(context.Context, *connect.Request[v1.HeartbeatRequest]) (*connect.Response[v1.HeartbeatResponse], error)
 	Subscribe(context.Context, *connect.Request[v1.SubscribeRequest]) (*connect.ServerStreamForClient[v1.SubscribeEvent], error)
+	GetServerInfo(context.Context, *connect.Request[v1.GetServerInfoRequest]) (*connect.Response[v1.GetServerInfoResponse], error)
 }
 
 // NewWorkerServiceClient constructs a client for the corvo.v1.WorkerService service. By default, it
@@ -146,6 +151,12 @@ func NewWorkerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(workerServiceSubscribeMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
+		getServerInfo: connect.NewClient[v1.GetServerInfoRequest, v1.GetServerInfoResponse](
+			httpClient,
+			baseURL+WorkerServiceGetServerInfoProcedure,
+			connect.WithSchema(workerServiceGetServerInfoMethodDescriptor),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -160,6 +171,7 @@ type workerServiceClient struct {
 	fail            *connect.Client[v1.FailRequest, v1.FailResponse]
 	heartbeat       *connect.Client[v1.HeartbeatRequest, v1.HeartbeatResponse]
 	subscribe       *connect.Client[v1.SubscribeRequest, v1.SubscribeEvent]
+	getServerInfo   *connect.Client[v1.GetServerInfoRequest, v1.GetServerInfoResponse]
 }
 
 // Enqueue calls corvo.v1.WorkerService.Enqueue.
@@ -207,6 +219,11 @@ func (c *workerServiceClient) Subscribe(ctx context.Context, req *connect.Reques
 	return c.subscribe.CallServerStream(ctx, req)
 }
 
+// GetServerInfo calls corvo.v1.WorkerService.GetServerInfo.
+func (c *workerServiceClient) GetServerInfo(ctx context.Context, req *connect.Request[v1.GetServerInfoRequest]) (*connect.Response[v1.GetServerInfoResponse], error) {
+	return c.getServerInfo.CallUnary(ctx, req)
+}
+
 // WorkerServiceHandler is an implementation of the corvo.v1.WorkerService service.
 type WorkerServiceHandler interface {
 	Enqueue(context.Context, *connect.Request[v1.EnqueueRequest]) (*connect.Response[v1.EnqueueResponse], error)
@@ -218,6 +235,7 @@ type WorkerServiceHandler interface {
 	Fail(context.Context, *connect.Request[v1.FailRequest]) (*connect.Response[v1.FailResponse], error)
 	Heartbeat(context.Context, *connect.Request[v1.HeartbeatRequest]) (*connect.Response[v1.HeartbeatResponse], error)
 	Subscribe(context.Context, *connect.Request[v1.SubscribeRequest], *connect.ServerStream[v1.SubscribeEvent]) error
+	GetServerInfo(context.Context, *connect.Request[v1.GetServerInfoRequest]) (*connect.Response[v1.GetServerInfoResponse], error)
 }
 
 // NewWorkerServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -280,6 +298,12 @@ func NewWorkerServiceHandler(svc WorkerServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(workerServiceSubscribeMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
+	workerServiceGetServerInfoHandler := connect.NewUnaryHandler(
+		WorkerServiceGetServerInfoProcedure,
+		svc.GetServerInfo,
+		connect.WithSchema(workerServiceGetServerInfoMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/corvo.v1.WorkerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case WorkerServiceEnqueueProcedure:
@@ -300,6 +324,8 @@ func NewWorkerServiceHandler(svc WorkerServiceHandler, opts ...connect.HandlerOp
 			workerServiceHeartbeatHandler.ServeHTTP(w, r)
 		case WorkerServiceSubscribeProcedure:
 			workerServiceSubscribeHandler.ServeHTTP(w, r)
+		case WorkerServiceGetServerInfoProcedure:
+			workerServiceGetServerInfoHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -343,4 +369,8 @@ func (UnimplementedWorkerServiceHandler) Heartbeat(context.Context, *connect.Req
 
 func (UnimplementedWorkerServiceHandler) Subscribe(context.Context, *connect.Request[v1.SubscribeRequest], *connect.ServerStream[v1.SubscribeEvent]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("corvo.v1.WorkerService.Subscribe is not implemented"))
+}
+
+func (UnimplementedWorkerServiceHandler) GetServerInfo(context.Context, *connect.Request[v1.GetServerInfoRequest]) (*connect.Response[v1.GetServerInfoResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("corvo.v1.WorkerService.GetServerInfo is not implemented"))
 }
